@@ -19,6 +19,8 @@ $seed_name = '';
 
 $csvs_to_import = glob("../integracao/*.csv");
 
+$retorno = "";
+
 foreach($csvs_to_import as $csv) {
   $timestamp = explode("-", $csv)[1];
   $timestamp = substr($timestamp, 0, strrpos($timestamp, "."));
@@ -158,19 +160,49 @@ foreach($csvs_to_import as $csv) {
 
   write('end');
 
-  echo 'arquivo gerado com sucesso!<br>' . PHP_EOL;
+  $retorno .= 'arquivo gerado com sucesso!<br>' . PHP_EOL;
 
   $file_path = explode('/', $csv);
   if(rename($csv, '../cron_integration/migrated/' . end($file_path))) {
-    echo "arquivo movido com sucesso! $csv<br>";
+    $retorno .= "arquivo movido com sucesso! $csv<br>" . PHP_EOL;
   } else {
-    echo "arquivo não movido: $csv<br>";
+    $retorno .= "arquivo não movido: $csv<br>" . PHP_EOL;
   }
 }
 
 commitSeeds();
+sendMail();
+echo $retorno;
+
+function sendMail() {
+  global $retorno;
+
+  require 'PHPMailer/PHPMailer.php';
+  require 'PHPMailer/SMTP.php';
+
+  $mail = new PHPMailer;
+  $mail->isSMTP();
+  $mail->SMTPDebug = 0;
+  $mail->Host = 'smtp.gmail.com';
+  $mail->Port = 587;
+  $mail->SMTPSecure = 'tls';
+  $mail->SMTPAuth = true;
+  $mail->Username = "morustecnologia@gmail.com";
+  $mail->Password = "Cc~cdl74#7~T!@#";
+  $mail->setFrom('morustecnologia@gmail.com', 'Morus Tecnologia');
+  $mail->addReplyTo('morustecnologia@gmail.com', 'Morus Tecnologia');
+  $mail->Subject = 'DISCE Integration - Fernanda Pessoa';
+  $mail->msgHTML($retorno, __DIR__);
+  $mail->AltBody = $retorno;
+  if($mail->send()) {
+    echo "mail sent<br>";
+  } else {
+    echo "mail error<br>";
+  }
+}
 
 function commitSeeds() {
+  global $retorno;
   $seeds = glob("seed*.rb");
 
   if(!empty($seeds)) {
@@ -180,9 +212,9 @@ function commitSeeds() {
 
     if(!Git::is_repo($repo)) {
       $repo = Git::create('.');
-      echo "Git::create<br>" . PHP_EOL;
+      $retorno .= "Git::create<br>" . PHP_EOL;
     } else {
-      echo "Git::open<br>" . PHP_EOL;
+      $retorno .= "Git::open<br>" . PHP_EOL;
     }
 
     $msg = "";
@@ -193,12 +225,12 @@ function commitSeeds() {
     }
 
     if(!empty($msg)) {
-      echo "msg: $msg<br>";
+      $retorno .= "msg: $msg<br>";
       $repo->commit($msg);
       $repo->push('origin', 'master');
-      echo "commited<br>" . PHP_EOL;
+      $retorno .= "commited<br>" . PHP_EOL;
     } else {
-      echo "msg null<br>";
+      $retorno .= "msg empty<br>";
     }
   }
 }
